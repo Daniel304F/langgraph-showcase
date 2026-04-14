@@ -1,0 +1,149 @@
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Search, BookOpen, CheckCircle2, RefreshCw,
+  FileText, ClipboardList, ArrowDown, RotateCcw,
+  ChevronRight,
+} from 'lucide-react'
+
+const ICON_MAP = {
+  search: Search,
+  book: BookOpen,
+  'check-circle': CheckCircle2,
+  refresh: RefreshCw,
+  'file-text': FileText,
+  clipboard: ClipboardList,
+}
+
+const EDGES = [
+  { from: 'understand_topic', to: 'evaluate_sources', type: 'normal' },
+  { from: 'evaluate_sources', to: 'check_quality', type: 'normal' },
+  { from: 'check_quality', to: 'refine_topic', type: 'conditional', label: 'NEIN' },
+  { from: 'check_quality', to: 'summarize', type: 'conditional', label: 'JA' },
+  { from: 'refine_topic', to: 'understand_topic', type: 'cycle' },
+  { from: 'summarize', to: 'generate_report', type: 'normal' },
+]
+
+export default function WorkflowPanel({ nodes, activeNode, completedNodes, iteration }) {
+  const getNodeStatus = (nodeId) => {
+    if (activeNode === nodeId) return 'active'
+    if (completedNodes.includes(nodeId)) return 'completed'
+    return 'idle'
+  }
+
+  return (
+    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 h-fit sticky top-20">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          Workflow Graph
+        </h2>
+        <AnimatePresence>
+          {iteration > 0 && (
+            <motion.span
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30"
+            >
+              Iteration {iteration}/2
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="flex flex-col items-center gap-1">
+        {nodes.map((node, index) => {
+          const status = getNodeStatus(node.id)
+          const Icon = ICON_MAP[node.icon] || FileText
+          const isRefine = node.id === 'refine_topic'
+
+          // Find relevant edges
+          const showArrowAfter = index < nodes.length - 1 && node.id !== 'refine_topic'
+          const showCycleArrow = isRefine
+          const isCheckQuality = node.id === 'check_quality'
+
+          return (
+            <div key={node.id} className="w-full flex flex-col items-center">
+              <motion.div
+                layout
+                className={`
+                  w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-300 relative
+                  ${status === 'active'
+                    ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                    : status === 'completed'
+                      ? 'border-emerald-500/50 bg-emerald-500/5'
+                      : 'border-slate-700/50 bg-slate-800/50'
+                  }
+                `}
+              >
+                {/* Pulse ring for active */}
+                {status === 'active' && (
+                  <motion.div
+                    className="absolute inset-0 rounded-xl border-2 border-blue-400"
+                    initial={{ opacity: 0.6 }}
+                    animate={{ opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
+                )}
+
+                {/* Icon */}
+                <div className={`
+                  w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
+                  ${status === 'active' ? 'bg-blue-500/20 text-blue-400'
+                    : status === 'completed' ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-slate-700/50 text-slate-500'}
+                `}>
+                  {status === 'completed' ? (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+                      <CheckCircle2 className="w-4 h-4" />
+                    </motion.div>
+                  ) : status === 'active' ? (
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}>
+                      <Icon className="w-4 h-4" />
+                    </motion.div>
+                  ) : (
+                    <Icon className="w-4 h-4" />
+                  )}
+                </div>
+
+                {/* Label */}
+                <span className={`text-sm font-medium ${status === 'active' ? 'text-blue-300' : status === 'completed' ? 'text-emerald-300' : 'text-slate-400'}`}>
+                  {node.label}
+                </span>
+
+                {/* Active indicator */}
+                {status === 'active' && (
+                  <motion.div
+                    className="ml-auto"
+                    animate={{ x: [0, 3, 0] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-blue-400" />
+                  </motion.div>
+                )}
+              </motion.div>
+
+              {/* Arrows */}
+              {isCheckQuality && (
+                <div className="flex items-center gap-1 py-0.5">
+                  <span className="text-[9px] font-bold text-amber-400/70">NEIN ↓</span>
+                  <span className="text-slate-700 text-[9px]">|</span>
+                  <span className="text-[9px] font-bold text-emerald-400/70">JA ↓↓</span>
+                </div>
+              )}
+
+              {showCycleArrow && (
+                <div className="flex items-center gap-1 py-0.5 text-amber-400/60">
+                  <RotateCcw className="w-3 h-3" />
+                  <span className="text-[9px] font-semibold">zurück zu &quot;Thema verstehen&quot;</span>
+                </div>
+              )}
+
+              {showArrowAfter && !isCheckQuality && (
+                <ArrowDown className="w-3.5 h-3.5 text-slate-600 my-0.5" />
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

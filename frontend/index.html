@@ -1,82 +1,15 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LangGraph Research Assistant</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <header>
-        <h1>LangGraph Research Assistant</h1>
-        <p class="subtitle">Mehrstufiger AI-Workflow mit Zyklus-Logik</p>
-    </header>
-
-    <main>
-        <div class="input-section">
-            <input type="text" id="question-input" placeholder="Forschungsfrage eingeben..." />
-            <button id="start-btn">Recherche starten</button>
-        </div>
-
-        <div class="content">
-            <aside class="pipeline">
-                <h2>Workflow</h2>
-                <div class="iteration-badge" id="iteration-badge" hidden>Durchlauf <span id="iteration-count">1</span>/2</div>
-                <div class="nodes">
-                    <div class="node" data-node="understand_topic">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Thema verstehen</span>
-                    </div>
-                    <div class="arrow">&#8595;</div>
-
-                    <div class="node" data-node="evaluate_sources">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Quellen bewerten</span>
-                    </div>
-                    <div class="arrow">&#8595;</div>
-
-                    <div class="node" data-node="check_quality">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Qualität prüfen</span>
-                    </div>
-                    <div class="arrow arrow-branch">
-                        <span class="branch-label branch-no">&#8595; NEIN</span>
-                    </div>
-
-                    <div class="node node-refine" data-node="refine_topic">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Thema verfeinern</span>
-                    </div>
-                    <div class="cycle-arrow">
-                        <span class="cycle-label">&#8634; zurück zu "Thema verstehen"</span>
-                    </div>
-
-                    <div class="arrow arrow-branch">
-                        <span class="branch-label branch-yes">&#8595; JA</span>
-                    </div>
-
-                    <div class="node" data-node="summarize">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Zusammenfassen</span>
-                    </div>
-                    <div class="arrow">&#8595;</div>
-
-                    <div class="node" data-node="generate_report">
-                        <div class="node-indicator"></div>
-                        <span class="node-label">Report erstellen</span>
-                    </div>
-                </div>
-            </aside>
-
-            <section class="output">
-                <h2>Live-Output</h2>
-                <div id="output-container">
-                    <p class="placeholder">Starte eine Recherche, um den Workflow zu sehen.</p>
-                </div>
-            </section>
-        </div>
-    </main>
-
-    <script src="app.js"></script>
-</body>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  </head>
+  <body class="bg-slate-950 text-slate-200 antialiased">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
