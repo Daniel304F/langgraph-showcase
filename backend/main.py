@@ -44,6 +44,31 @@ NODE_DESCRIPTIONS = {
     "generate_report": "Erstellt den finalen, lesbaren Report",
 }
 
+# Welche State-Keys jeder Node LIEST (Input) und SCHREIBT (Output)
+NODE_READS = {
+    "understand_topic": ["question", "refinement_notes"],
+    "evaluate_sources": ["question", "sub_topics", "gathered_info"],
+    "check_quality": ["question", "gathered_info", "iteration"],
+    "refine_topic": ["question", "sub_topics", "gathered_info"],
+    "summarize": ["question", "gathered_info"],
+    "generate_report": ["question", "summary"],
+}
+
+NODE_WRITES = {
+    "understand_topic": ["sub_topics"],
+    "evaluate_sources": ["gathered_info"],
+    "check_quality": ["quality_sufficient", "iteration"],
+    "refine_topic": ["refinement_notes"],
+    "summarize": ["summary"],
+    "generate_report": ["report"],
+}
+
+# All state keys in defined order
+ALL_STATE_KEYS = [
+    "question", "sub_topics", "gathered_info", "quality_sufficient",
+    "iteration", "refinement_notes", "summary", "report",
+]
+
 # Store resume values between POST and GET
 resume_store: dict[str, Any] = {}
 
@@ -53,8 +78,20 @@ class ResumeRequest(BaseModel):
 
 
 def serialize_state(state: dict) -> dict:
+    """Serialize state ensuring all keys are present."""
+    defaults = {
+        "question": "",
+        "sub_topics": [],
+        "gathered_info": "",
+        "quality_sufficient": False,
+        "iteration": 0,
+        "refinement_notes": "",
+        "summary": "",
+        "report": "",
+    }
     result = {}
-    for key, value in state.items():
+    for key in ALL_STATE_KEYS:
+        value = state.get(key, defaults.get(key))
         if isinstance(value, (str, int, float, bool)):
             result[key] = value
         elif isinstance(value, list):
@@ -74,6 +111,17 @@ def format_output_text(node_name: str, node_output: dict) -> str:
     if isinstance(output_value, bool):
         return "Ja" if output_value else "Nein"
     return str(output_value)
+
+
+def get_full_state(config: dict, fallback: dict) -> dict:
+    """Get the full state from the checkpointer, with fallback."""
+    try:
+        snapshot = graph.get_state(config)
+        if snapshot and snapshot.values:
+            return dict(snapshot.values)
+    except Exception:
+        pass
+    return fallback
 
 
 async def stream_graph_events(config: dict, input_value):
@@ -96,6 +144,8 @@ async def stream_graph_events(config: dict, input_value):
                     "data": json.dumps({
                         "node": node,
                         "description": NODE_DESCRIPTIONS.get(node, ""),
+                        "reads": NODE_READS.get(node, []),
+                        "writes": NODE_WRITES.get(node, []),
                     }, ensure_ascii=False),
                 }
 
@@ -126,11 +176,16 @@ async def stream_graph_events(config: dict, input_value):
                         "data": json.dumps({
                             "node": node_name,
                             "description": NODE_DESCRIPTIONS.get(node_name, ""),
+                            "reads": NODE_READS.get(node_name, []),
+                            "writes": NODE_WRITES.get(node_name, []),
                         }, ensure_ascii=False),
                     }
 
                 current_state.update(node_output)
-                iteration = current_state.get("iteration", 0)
+
+                # Get full state from checkpointer
+                full_state = get_full_state(config, current_state)
+                iteration = full_state.get("iteration", 0)
                 output_text = format_output_text(node_name, node_output)
 
                 yield {
@@ -140,8 +195,10 @@ async def stream_graph_events(config: dict, input_value):
                         "status": "completed",
                         "iteration": iteration,
                         "output": output_text,
-                        "state": serialize_state(current_state),
+                        "state": serialize_state(full_state),
                         "changed_keys": list(node_output.keys()),
+                        "reads": NODE_READS.get(node_name, []),
+                        "writes": NODE_WRITES.get(node_name, []),
                     }, ensure_ascii=False),
                 }
 
@@ -157,14 +214,22 @@ async def stream_graph_events(config: dict, input_value):
                         "data": json.dumps({
                             "node": node_name,
                             "description": NODE_DESCRIPTIONS.get(node_name, ""),
+                            "reads": NODE_READS.get(node_name, []),
+                            "writes": NODE_WRITES.get(node_name, []),
                         }, ensure_ascii=False),
                     }
+
+                # Send full state with interrupt
+                full_state = get_full_state(config, current_state)
                 interrupt_value = task.interrupts[0].value
                 yield {
                     "event": "interrupt",
                     "data": json.dumps({
                         **interrupt_value,
                         "node": node_name,
+                        "state": serialize_state(full_state),
+                        "reads": NODE_READS.get(node_name, []),
+                        "writes": NODE_WRITES.get(node_name, []),
                     }, ensure_ascii=False),
                 }
                 return

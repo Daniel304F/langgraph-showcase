@@ -29,6 +29,8 @@ export default function App() {
   const [error, setError] = useState(null)
   const [sessionId, setSessionId] = useState(null)
   const [interruptData, setInterruptData] = useState(null)
+  const [nodeReads, setNodeReads] = useState([])
+  const [nodeWrites, setNodeWrites] = useState([])
 
   const eventSourceRef = useRef(null)
 
@@ -48,6 +50,8 @@ export default function App() {
     setError(null)
     setSessionId(null)
     setInterruptData(null)
+    setNodeReads([])
+    setNodeWrites([])
   }, [])
 
   const connectToStream = useCallback((url) => {
@@ -72,6 +76,8 @@ export default function App() {
       setStreamingNode(data.node)
       setStreamingText('')
       setChangedKeys([])
+      setNodeReads(data.reads || [])
+      setNodeWrites(data.writes || [])
       // Remove from completed if re-entering (cycle)
       setCompletedNodes((prev) => prev.filter((n) => n !== data.node))
     })
@@ -101,6 +107,8 @@ export default function App() {
       ])
       setCurrentState(data.state)
       setChangedKeys(data.changed_keys || [])
+      setNodeReads(data.reads || [])
+      setNodeWrites(data.writes || [])
       setIteration(data.iteration || 0)
     })
 
@@ -113,6 +121,9 @@ export default function App() {
       setStreamingNode(null)
       setStreamingText('')
       setInterruptData(data)
+      if (data.state) setCurrentState(data.state)
+      setNodeReads(data.reads || [])
+      setNodeWrites(data.writes || [])
     })
 
     es.addEventListener('done', () => {
@@ -120,6 +131,8 @@ export default function App() {
       eventSourceRef.current = null
       setIsRunning(false)
       setActiveNode(null)
+      setNodeReads([])
+      setNodeWrites([])
     })
 
     es.onerror = () => {
@@ -202,7 +215,12 @@ export default function App() {
           </div>
 
           {/* Right: State Inspector */}
-          <StateInspector state={currentState} changedKeys={changedKeys} />
+          <StateInspector
+            state={currentState}
+            changedKeys={changedKeys}
+            nodeReads={nodeReads}
+            nodeWrites={nodeWrites}
+          />
         </div>
       </div>
     </div>
