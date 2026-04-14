@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, BookOpen, CheckCircle2, RefreshCw,
   FileText, ClipboardList, ArrowDown, RotateCcw,
-  ChevronRight,
+  ChevronRight, Hand,
 } from 'lucide-react'
 
 const ICON_MAP = {
@@ -23,8 +23,9 @@ const EDGES = [
   { from: 'summarize', to: 'generate_report', type: 'normal' },
 ]
 
-export default function WorkflowPanel({ nodes, activeNode, completedNodes, iteration }) {
+export default function WorkflowPanel({ nodes, activeNode, completedNodes, iteration, interruptNode }) {
   const getNodeStatus = (nodeId) => {
+    if (interruptNode === nodeId) return 'interrupt'
     if (activeNode === nodeId) return 'active'
     if (completedNodes.includes(nodeId)) return 'completed'
     return 'idle'
@@ -66,11 +67,13 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                 layout
                 className={`
                   w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 transition-all duration-300 relative
-                  ${status === 'active'
-                    ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
-                    : status === 'completed'
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
-                      : 'border-slate-700/50 bg-slate-800/50'
+                  ${status === 'interrupt'
+                    ? 'border-amber-500 bg-amber-500/10 shadow-[0_0_20px_rgba(245,158,11,0.15)]'
+                    : status === 'active'
+                      ? 'border-blue-500 bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.15)]'
+                      : status === 'completed'
+                        ? 'border-emerald-500/50 bg-emerald-500/5'
+                        : 'border-slate-700/50 bg-slate-800/50'
                   }
                 `}
               >
@@ -87,11 +90,16 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                 {/* Icon */}
                 <div className={`
                   w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
-                  ${status === 'active' ? 'bg-blue-500/20 text-blue-400'
-                    : status === 'completed' ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-slate-700/50 text-slate-500'}
+                  ${status === 'interrupt' ? 'bg-amber-500/20 text-amber-400'
+                    : status === 'active' ? 'bg-blue-500/20 text-blue-400'
+                      : status === 'completed' ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-slate-700/50 text-slate-500'}
                 `}>
-                  {status === 'completed' ? (
+                  {status === 'interrupt' ? (
+                    <motion.div animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 1.5, repeat: Infinity }}>
+                      <Hand className="w-4 h-4" />
+                    </motion.div>
+                  ) : status === 'completed' ? (
                     <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
                       <CheckCircle2 className="w-4 h-4" />
                     </motion.div>
@@ -105,7 +113,7 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                 </div>
 
                 {/* Label */}
-                <span className={`text-sm font-medium ${status === 'active' ? 'text-blue-300' : status === 'completed' ? 'text-emerald-300' : 'text-slate-400'}`}>
+                <span className={`text-sm font-medium ${status === 'interrupt' ? 'text-amber-300' : status === 'active' ? 'text-blue-300' : status === 'completed' ? 'text-emerald-300' : 'text-slate-400'}`}>
                   {node.label}
                 </span>
 

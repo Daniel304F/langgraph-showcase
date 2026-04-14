@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from state import ResearchState
 from nodes import (
     understand_topic,
@@ -16,7 +17,7 @@ def quality_router(state: ResearchState) -> str:
     return "refine_topic"
 
 
-def build_graph() -> StateGraph:
+def build_graph():
     graph = StateGraph(ResearchState)
 
     graph.add_node("understand_topic", understand_topic)
@@ -37,4 +38,5 @@ def build_graph() -> StateGraph:
     graph.add_edge("summarize", "generate_report")
     graph.add_edge("generate_report", END)
 
-    return graph.compile()
+    memory = MemorySaver()
+    return graph.compile(checkpointer=memory)

@@ -1,5 +1,6 @@
 import os
 
+from langgraph.types import interrupt
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from state import ResearchState
@@ -32,8 +33,16 @@ def understand_topic(state: ResearchState) -> dict:
 
     lines = [line.strip() for line in result.content.strip().split("\n") if line.strip()]
 
-    return {
+    # Human-in-the-Loop: Nutzer kann Teilaspekte prüfen und bearbeiten
+    approved_topics = interrupt({
+        "type": "review_topics",
         "sub_topics": lines,
+        "message": "Prüfe die generierten Teilaspekte. Du kannst sie bearbeiten, "
+                   "hinzufügen oder entfernen bevor die Recherche startet.",
+    })
+
+    return {
+        "sub_topics": approved_topics,
     }
 
 
@@ -67,31 +76,23 @@ def evaluate_sources(state: ResearchState) -> dict:
 def check_quality(state: ResearchState) -> dict:
     iteration = state.get("iteration", 0) + 1
 
+    # Nach 2 Iterationen immer weiter
     if iteration >= 2:
         return {
             "quality_sufficient": True,
             "iteration": iteration,
         }
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein kritischer Reviewer. Bewerte ob die gesammelten Informationen "
-                   "die Forschungsfrage ausreichend abdecken. Antworte NUR mit 'JA' oder 'NEIN' "
-                   "gefolgt von einer kurzen Begründung."),
-        ("human", "Forschungsfrage: {question}\n\n"
-                  "Gesammelte Informationen:\n{gathered_info}\n\n"
-                  "Sind die Informationen ausreichend um einen umfassenden Bericht zu erstellen?")
-    ])
-
-    chain = prompt | get_llm()
-    result = chain.invoke({
-        "question": state["question"],
-        "gathered_info": state.get("gathered_info", ""),
+    # Human-in-the-Loop: Nutzer entscheidet ob Qualität reicht
+    decision = interrupt({
+        "type": "quality_check",
+        "iteration": iteration,
+        "message": "Sind die gesammelten Informationen ausreichend für einen guten Report?",
+        "gathered_info_preview": state.get("gathered_info", "")[:1000],
     })
 
-    is_sufficient = result.content.strip().upper().startswith("JA")
-
     return {
-        "quality_sufficient": is_sufficient,
+        "quality_sufficient": decision,
         "iteration": iteration,
     }
 

@@ -7,7 +7,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 const NODE_CODE = {
   understand_topic: {
     file: 'nodes.py',
-    line: '11-33',
+    line: '17-49',
     code: `def understand_topic(state: ResearchState) -> dict:
     refinement = state.get("refinement_notes", "")
     context = ""
@@ -15,18 +15,23 @@ const NODE_CODE = {
         context = f"\\n\\nBisherige Erkenntnisse:\\n{refinement}"
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. "
-                   "Zerlege die Frage in 3-5 Teilaspekte..."),
-        ("human", "Forschungsfrage: {question}{context}\\n\\n"
-                  "Erstelle eine Liste von Teilaspekten...")
+        ("system", "Zerlege die Frage in 3-5 Teilaspekte..."),
+        ("human", "Forschungsfrage: {question}{context}")
     ])
 
     chain = prompt | get_llm()
-    result = chain.invoke({
-        "question": state["question"],
-        "context": context
+    result = chain.invoke({...})
+    lines = [line.strip() for line in result.content.split("\\n")]
+
+    # >>> Human-in-the-Loop <<<
+    # Workflow pausiert hier und wartet auf User-Input
+    approved_topics = interrupt({
+        "type": "review_topics",
+        "sub_topics": lines,
+        "message": "Prüfe die Teilaspekte...",
     })
-    return {"sub_topics": [...]}`,
+
+    return {"sub_topics": approved_topics}`,
   },
   evaluate_sources: {
     file: 'nodes.py',
@@ -51,7 +56,7 @@ const NODE_CODE = {
   },
   check_quality: {
     file: 'nodes.py',
-    line: '61-90',
+    line: '68-92',
     code: `def check_quality(state: ResearchState) -> dict:
     iteration = state.get("iteration", 0) + 1
 
@@ -62,19 +67,16 @@ const NODE_CODE = {
             "iteration": iteration,
         }
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Bewerte ob die Informationen "
-                   "ausreichend sind. Antworte NUR "
-                   "mit 'JA' oder 'NEIN'..."),
-        ("human", "Forschungsfrage: {question}\\n"
-                  "Gesammelte Informationen:\\n{gathered_info}")
-    ])
+    # >>> Human-in-the-Loop <<<
+    # Nutzer entscheidet statt LLM!
+    decision = interrupt({
+        "type": "quality_check",
+        "iteration": iteration,
+        "message": "Sind die Infos ausreichend?",
+    })
 
-    chain = prompt | get_llm()
-    result = chain.invoke({...})
-    is_sufficient = result.content.startswith("JA")
     return {
-        "quality_sufficient": is_sufficient,
+        "quality_sufficient": decision,  # bool vom User
         "iteration": iteration,
     }`,
   },
@@ -129,7 +131,9 @@ const NODE_CODE = {
   },
 }
 
-const GRAPH_CODE = `# graph.py – LangGraph Workflow
+const GRAPH_CODE = `# graph.py – LangGraph Workflow mit Checkpointer
+from langgraph.checkpoint.memory import MemorySaver
+
 graph = StateGraph(ResearchState)
 
 graph.add_node("understand_topic", understand_topic)
@@ -148,7 +152,11 @@ graph.add_conditional_edges("check_quality", quality_router, {
 })
 graph.add_edge("refine_topic", "understand_topic")
 graph.add_edge("summarize", "generate_report")
-graph.add_edge("generate_report", END)`
+graph.add_edge("generate_report", END)
+
+# MemorySaver ermöglicht interrupt() & resume
+memory = MemorySaver()
+compiled = graph.compile(checkpointer=memory)`
 
 export default function CodeView({ activeNode, lastCompletedNode }) {
   const [isOpen, setIsOpen] = useState(true)

@@ -32,12 +32,12 @@ function getColorClasses(color) {
   return map[color] || map.blue
 }
 
-export default function OutputPanel({ blocks, isRunning, activeNode }) {
+export default function OutputPanel({ blocks, isRunning, activeNode, streamingText, streamingNode }) {
   const bottomRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [blocks, activeNode])
+  }, [blocks, activeNode, streamingText])
 
   return (
     <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
@@ -52,7 +52,7 @@ export default function OutputPanel({ blocks, isRunning, activeNode }) {
       </div>
 
       <div className="p-4 max-h-[600px] overflow-y-auto space-y-3 scrollbar-thin">
-        {blocks.length === 0 && !isRunning && (
+        {blocks.length === 0 && !isRunning && !streamingNode && (
           <div className="text-center py-12 text-slate-600">
             <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">Starte eine Recherche, um den Workflow zu sehen.</p>
@@ -97,18 +97,45 @@ export default function OutputPanel({ blocks, isRunning, activeNode }) {
           })}
         </AnimatePresence>
 
-        {/* Active node indicator */}
+        {/* Live token streaming block */}
         <AnimatePresence>
-          {activeNode && (
+          {streamingNode && streamingText && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="rounded-xl border border-blue-500/20 overflow-hidden"
+            >
+              <div className="px-3 py-2 bg-blue-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="text-xs font-semibold text-blue-400">
+                    {NODE_LABELS[streamingNode] || streamingNode}
+                  </span>
+                  <Loader2 className="w-3 h-3 text-blue-400 animate-spin" />
+                </div>
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 animate-pulse">
+                  STREAMING
+                </span>
+              </div>
+              <div className="px-3 py-2.5 text-[13px] leading-relaxed text-slate-400 whitespace-pre-wrap max-h-60 overflow-y-auto font-[system-ui]">
+                {streamingText}
+                <span className="inline-block w-1.5 h-4 bg-blue-400 ml-0.5 animate-pulse align-text-bottom" />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Active node indicator (no tokens yet) */}
+        <AnimatePresence>
+          {activeNode && !streamingText && isRunning && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-500/5 border border-blue-500/20"
             >
-              <div className="relative">
-                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-              </div>
+              <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
               <div>
                 <p className="text-sm font-medium text-blue-300">
                   {NODE_LABELS[activeNode] || activeNode}
