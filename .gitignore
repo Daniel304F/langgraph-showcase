@@ -1,2 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+.venv/
+*.egg-info/
+dist/
+build/
+.idea/
+.vscode/
+*.log
+
+.claude
 CLAUDE.md
 project.md
