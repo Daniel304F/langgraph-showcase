@@ -242,7 +242,7 @@ export default function StateInspector({ state, changedKeys, nodeReads, nodeWrit
 
   return (
     <>
-      <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden h-fit sticky top-20">
+      <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl overflow-hidden h-fit sticky top-16 backdrop-blur-sm">
         <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
           <Database className="w-4 h-4 text-slate-500" />
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">

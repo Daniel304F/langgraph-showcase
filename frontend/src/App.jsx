@@ -170,10 +170,10 @@ export default function App() {
   )
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-slate-950">
       <Header />
 
-      <div className="px-4 pb-4 max-w-[1600px] mx-auto w-full">
+      <div className="px-4 pt-1 pb-6 max-w-[1600px] mx-auto w-full">
         <InputSection onSubmit={startResearch} isRunning={isRunning} />
 
         {error && (

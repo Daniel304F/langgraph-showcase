@@ -32,9 +32,9 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
   }
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 h-fit sticky top-20">
+    <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-4 h-fit sticky top-16 backdrop-blur-sm">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
           Workflow Graph
         </h2>
         <AnimatePresence>

@@ -118,7 +118,7 @@ function TopicReview({ data, onResume }) {
       <button
         onClick={() => onResume(topics)}
         disabled={topics.length === 0}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-all disabled:opacity-40"
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold transition-all disabled:opacity-40 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
       >
         <Sparkles className="w-4 h-4" />
         Bestätigen & Recherche starten
@@ -174,7 +174,7 @@ export default function InterruptOverlay({ data, onResume }) {
       initial={{ opacity: 0, y: 20, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="bg-slate-900/95 border-2 border-amber-500/40 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.1)]"
+      className="bg-slate-900/95 border-2 border-amber-500/40 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.1)] backdrop-blur-sm"
     >
       {/* Header */}
       <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-3">

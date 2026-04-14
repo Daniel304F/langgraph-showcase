@@ -165,7 +165,7 @@ export default function CodeView({ activeNode, lastCompletedNode }) {
   const codeInfo = nodeToShow ? NODE_CODE[nodeToShow] : null
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
+    <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-sm">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-4 py-3 border-b border-slate-800 flex items-center gap-2 hover:bg-slate-800/30 transition-colors"

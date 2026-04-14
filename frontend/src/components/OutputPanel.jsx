@@ -40,14 +40,17 @@ export default function OutputPanel({ blocks, isRunning, activeNode, streamingTe
   }, [blocks, activeNode, streamingText])
 
   return (
-    <div className="bg-slate-900/80 border border-slate-800 rounded-2xl overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
+    <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl overflow-hidden backdrop-blur-sm">
+      <div className="px-4 py-3 border-b border-slate-800/80 flex items-center gap-2">
         <MessageSquare className="w-4 h-4 text-slate-500" />
-        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <h2 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
           Live Output
         </h2>
         {isRunning && (
-          <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
+          <span className="ml-auto flex items-center gap-1.5">
+            <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />
+            <span className="text-[10px] text-blue-400/80 font-mono">aktiv</span>
+          </span>
         )}
       </div>
 
