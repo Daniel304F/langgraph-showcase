@@ -5,158 +5,181 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 const NODE_CODE = {
-  understand_topic: {
+  plan_outline: {
     file: 'nodes.py',
-    line: '17-49',
-    code: `def understand_topic(state: ResearchState) -> dict:
-    refinement = state.get("refinement_notes", "")
-    context = ""
-    if refinement:
-        context = f"\\n\\nBisherige Erkenntnisse:\\n{refinement}"
+    line: '18-45',
+    code: `def plan_outline(state: BlogState) -> dict:
+    revision = state.get("revision_notes", "")
+    context = f"\\n\\nFrühere Hinweise:\\n{revision}" if revision else ""
+    audience = state.get("audience", "") or "allgemeines Publikum"
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Zerlege die Frage in 3-5 Teilaspekte..."),
-        ("human", "Forschungsfrage: {question}{context}")
+        ("system", "Du bist ein erfahrener Blog-Redakteur. "
+                   "Erstelle eine Outline mit 4-6 Abschnitten."),
+        ("human", "Thema: {topic}\\nZielgruppe: {audience}{context}")
     ])
 
     chain = prompt | get_llm()
     result = chain.invoke({...})
-    lines = [line.strip() for line in result.content.split("\\n")]
+    lines = [l.strip() for l in result.content.split("\\n") if l.strip()]
 
     # >>> Human-in-the-Loop <<<
-    # Workflow pausiert hier und wartet auf User-Input
-    approved_topics = interrupt({
-        "type": "review_topics",
-        "sub_topics": lines,
-        "message": "Prüfe die Teilaspekte...",
+    # Nutzer bearbeitet die Outline direkt im UI
+    approved_outline = interrupt({
+        "type": "review_outline",
+        "outline": lines,
+        "message": "Prüfe die Outline deines Blogartikels.",
     })
 
-    return {"sub_topics": approved_topics}`,
+    return {"outline": approved_outline}`,
   },
-  evaluate_sources: {
+  collect_sources: {
     file: 'nodes.py',
-    line: '36-58',
-    code: `def evaluate_sources(state: ResearchState) -> dict:
-    sub_topics_text = "\\n".join(state.get("sub_topics", []))
-    previous_info = state.get("gathered_info", "")
+    line: '48-82',
+    code: `def collect_sources(state: BlogState) -> dict:
+    outline_text = "\\n".join(state.get("outline", []))
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. "
-                   "Analysiere die Teilaspekte..."),
-        ("human", "Forschungsfrage: {question}\\n"
-                  "Teilaspekte:\\n{sub_topics}\\n"
-                  "Recherchiere zu jedem Teilaspekt...")
+        ("system", "Schlage 3-4 Arten von Quellen vor, die für "
+                   "den Artikel wertvoll wären. Keine fiktiven URLs."),
+        ("human", "Thema: {topic}\\nOutline:\\n{outline}")
     ])
 
     chain = prompt | get_llm()
     result = chain.invoke({...})
-
-    combined = previous_info + "\\n" + result.content
-    return {"gathered_info": combined.strip()}`,
-  },
-  check_quality: {
-    file: 'nodes.py',
-    line: '68-92',
-    code: `def check_quality(state: ResearchState) -> dict:
-    iteration = state.get("iteration", 0) + 1
-
-    # Fallback: max 2 Iterationen
-    if iteration >= 2:
-        return {
-            "quality_sufficient": True,
-            "iteration": iteration,
-        }
+    suggestions = result.content.strip()
 
     # >>> Human-in-the-Loop <<<
-    # Nutzer entscheidet statt LLM!
+    # Nutzer hinterlegt eigene URLs, Studien, Notizen
+    user_sources = interrupt({
+        "type": "add_sources",
+        "suggestions": suggestions,
+        "existing_sources": state.get("sources", []),
+        "message": "Füge deine eigenen Quellen hinzu.",
+    })
+
+    return {"sources": user_sources or []}`,
+  },
+  draft_article: {
+    file: 'nodes.py',
+    line: '85-125',
+    code: `def draft_article(state: BlogState) -> dict:
+    outline_text = "\\n".join(state.get("outline", []))
+    sources_text = "\\n".join(state.get("sources", []))
+    revision = state.get("revision_notes", "")
+    previous_draft = state.get("draft", "")
+
+    # Beim zweiten Durchlauf fließen Feedback + alter
+    # Entwurf in den Prompt ein.
+    revision_block = ""
+    if revision and previous_draft:
+        revision_block = (
+            f"\\nBisheriger Entwurf:\\n{previous_draft}\\n"
+            f"Überarbeitungshinweise:\\n{revision}"
+        )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "Du bist ein professioneller Blogautor. "
+                   "Schreibe einen Markdown-Artikel und "
+                   "referenziere die Quellen."),
+        ("human", "Thema: {topic}\\nOutline:\\n{outline}\\n"
+                  "Quellen:\\n{sources}{revision_block}")
+    ])
+
+    chain = prompt | get_llm()
+    result = chain.invoke({...})
+    return {"draft": result.content.strip()}`,
+  },
+  review_draft: {
+    file: 'nodes.py',
+    line: '128-158',
+    code: `def review_draft(state: BlogState) -> dict:
+    iteration = state.get("iteration", 0) + 1
+
+    # Fallback: nach 2 Runden automatisch freigeben
+    if iteration > 2:
+        return {"approved": True, "iteration": iteration,
+                "revision_notes": ""}
+
+    # >>> Human-in-the-Loop <<<
+    # Nutzer sieht den Entwurf und entscheidet
     decision = interrupt({
-        "type": "quality_check",
+        "type": "review_draft",
         "iteration": iteration,
-        "message": "Sind die Infos ausreichend?",
+        "draft_preview": state.get("draft", ""),
+        "message": "Freigeben oder Feedback geben?",
     })
 
     return {
-        "quality_sufficient": decision,  # bool vom User
+        "approved": bool(decision.get("approved", False)),
+        "revision_notes": decision.get("revision_notes", ""),
         "iteration": iteration,
     }`,
   },
-  refine_topic: {
+  revise_article: {
     file: 'nodes.py',
-    line: '93-113',
-    code: `def refine_topic(state: ResearchState) -> dict:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Identifiziere Lücken in der "
-                   "bisherigen Recherche..."),
-        ("human", "Forschungsfrage: {question}\\n"
-                  "Bisherige Teilaspekte: ...\\n"
-                  "Welche Aspekte fehlen noch?")
-    ])
-
-    chain = prompt | get_llm()
-    result = chain.invoke({...})
-    return {"refinement_notes": result.content}`,
+    line: '161-165',
+    code: `def revise_article(state: BlogState) -> dict:
+    # Pass-through Node: macht den Zyklus im Graph
+    # sichtbar. Die Überarbeitungslogik selbst steckt
+    # in draft_article (liest revision_notes).
+    return {}`,
   },
-  summarize: {
+  finalize: {
     file: 'nodes.py',
-    line: '116-133',
-    code: `def summarize(state: ResearchState) -> dict:
+    line: '168-192',
+    code: `def finalize(state: BlogState) -> dict:
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Erstelle eine strukturierte "
-                   "Zusammenfassung..."),
-        ("human", "Forschungsfrage: {question}\\n"
-                  "Alle Informationen:\\n{gathered_info}\\n"
-                  "Erstelle eine Zusammenfassung...")
+        ("system", "Du bist ein Blog-Editor. Erstelle die "
+                   "finale Fassung mit Titel, Meta-Description "
+                   "und Tags."),
+        ("human", "Thema: {topic}\\n\\n"
+                  "Freigegebener Entwurf:\\n{draft}\\n\\n"
+                  "Liefere als Markdown:\\n"
+                  "# <Titel>\\n"
+                  "**Meta-Description:** ...\\n"
+                  "**Tags:** t1, t2, t3\\n"
+                  "---\\n<Artikel>")
     ])
 
     chain = prompt | get_llm()
     result = chain.invoke({...})
-    return {"summary": result.content}`,
-  },
-  generate_report: {
-    file: 'nodes.py',
-    line: '136-157',
-    code: `def generate_report(state: ResearchState) -> dict:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Erstelle einen finalen "
-                   "Forschungsbericht..."),
-        ("human", "Forschungsfrage: {question}\\n"
-                  "Zusammenfassung:\\n{summary}\\n"
-                  "Erstelle Report mit Einleitung, "
-                  "Haupterkenntnisse, Fazit.")
-    ])
-
-    chain = prompt | get_llm()
-    result = chain.invoke({...})
-    return {"report": result.content}`,
+    return {"final_article": result.content.strip()}`,
   },
 }
 
-const GRAPH_CODE = `# graph.py – LangGraph Workflow mit Checkpointer
+const GRAPH_CODE = `# graph.py – LangGraph Blog Writer
 from langgraph.checkpoint.memory import MemorySaver
 
-graph = StateGraph(ResearchState)
+def review_router(state: BlogState) -> str:
+    if state.get("approved", False):
+        return "finalize"
+    if state.get("iteration", 0) >= 2:
+        return "finalize"
+    return "revise_article"
 
-graph.add_node("understand_topic", understand_topic)
-graph.add_node("evaluate_sources", evaluate_sources)
-graph.add_node("check_quality", check_quality)
-graph.add_node("refine_topic", refine_topic)
-graph.add_node("summarize", summarize)
-graph.add_node("generate_report", generate_report)
+graph = StateGraph(BlogState)
 
-graph.set_entry_point("understand_topic")
-graph.add_edge("understand_topic", "evaluate_sources")
-graph.add_edge("evaluate_sources", "check_quality")
-graph.add_conditional_edges("check_quality", quality_router, {
-    "summarize": "summarize",
-    "refine_topic": "refine_topic",
+graph.add_node("plan_outline", plan_outline)
+graph.add_node("collect_sources", collect_sources)
+graph.add_node("draft_article", draft_article)
+graph.add_node("review_draft", review_draft)
+graph.add_node("revise_article", revise_article)
+graph.add_node("finalize", finalize)
+
+graph.set_entry_point("plan_outline")
+graph.add_edge("plan_outline", "collect_sources")
+graph.add_edge("collect_sources", "draft_article")
+graph.add_edge("draft_article", "review_draft")
+graph.add_conditional_edges("review_draft", review_router, {
+    "finalize": "finalize",
+    "revise_article": "revise_article",
 })
-graph.add_edge("refine_topic", "understand_topic")
-graph.add_edge("summarize", "generate_report")
-graph.add_edge("generate_report", END)
+graph.add_edge("revise_article", "draft_article")
+graph.add_edge("finalize", END)
 
 # MemorySaver ermöglicht interrupt() & resume
-memory = MemorySaver()
-compiled = graph.compile(checkpointer=memory)`
+compiled = graph.compile(checkpointer=MemorySaver())`
 
 export default function CodeView({ activeNode, lastCompletedNode }) {
   const [isOpen, setIsOpen] = useState(true)

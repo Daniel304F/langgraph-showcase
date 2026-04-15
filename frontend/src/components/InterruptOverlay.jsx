@@ -9,42 +9,46 @@ import {
   XCircle,
   ArrowRight,
   Sparkles,
+  Link2,
+  Lightbulb,
+  MessageSquareText,
 } from 'lucide-react'
 
-function TopicReview({ data, onResume }) {
-  const [topics, setTopics] = useState(data.sub_topics || [])
+/* ─── 1. Outline Review ─── */
+function OutlineReview({ data, onResume }) {
+  const [items, setItems] = useState(data.outline || [])
   const [editIndex, setEditIndex] = useState(null)
   const [editValue, setEditValue] = useState('')
-  const [newTopic, setNewTopic] = useState('')
+  const [newItem, setNewItem] = useState('')
 
-  const handleEdit = (index) => {
-    setEditIndex(index)
-    setEditValue(topics[index])
+  const handleEdit = (i) => {
+    setEditIndex(i)
+    setEditValue(items[i])
   }
 
   const handleSaveEdit = () => {
     if (editValue.trim()) {
-      setTopics((prev) => prev.map((t, i) => (i === editIndex ? editValue.trim() : t)))
+      setItems((prev) => prev.map((t, i) => (i === editIndex ? editValue.trim() : t)))
     }
     setEditIndex(null)
     setEditValue('')
   }
 
-  const handleDelete = (index) => {
-    setTopics((prev) => prev.filter((_, i) => i !== index))
+  const handleDelete = (i) => {
+    setItems((prev) => prev.filter((_, j) => j !== i))
   }
 
   const handleAdd = () => {
-    if (newTopic.trim()) {
-      setTopics((prev) => [...prev, newTopic.trim()])
-      setNewTopic('')
+    if (newItem.trim()) {
+      setItems((prev) => [...prev, newItem.trim()])
+      setNewItem('')
     }
   }
 
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        {topics.map((topic, i) => (
+        {items.map((item, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, x: -10 }}
@@ -75,7 +79,7 @@ function TopicReview({ data, onResume }) {
               </div>
             ) : (
               <>
-                <span className="flex-1 text-sm text-slate-300">{topic}</span>
+                <span className="flex-1 text-sm text-slate-300">{item}</span>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button
                     onClick={() => handleEdit(i)}
@@ -96,19 +100,18 @@ function TopicReview({ data, onResume }) {
         ))}
       </div>
 
-      {/* Add new topic */}
       <div className="flex gap-2">
         <input
           type="text"
-          value={newTopic}
-          onChange={(e) => setNewTopic(e.target.value)}
+          value={newItem}
+          onChange={(e) => setNewItem(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-          placeholder="Neuen Teilaspekt hinzufügen..."
+          placeholder="Neuen Abschnitt hinzufügen..."
           className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
         />
         <button
           onClick={handleAdd}
-          disabled={!newTopic.trim()}
+          disabled={!newItem.trim()}
           className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Plus className="w-4 h-4" />
@@ -116,52 +119,167 @@ function TopicReview({ data, onResume }) {
       </div>
 
       <button
-        onClick={() => onResume(topics)}
-        disabled={topics.length === 0}
-        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold transition-all disabled:opacity-40 shadow-lg shadow-blue-500/10 hover:shadow-blue-500/20"
+        onClick={() => onResume(items)}
+        disabled={items.length === 0}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold transition-all disabled:opacity-40 shadow-lg shadow-blue-500/10"
       >
         <Sparkles className="w-4 h-4" />
-        Bestätigen & Recherche starten
+        Outline bestätigen
         <ArrowRight className="w-4 h-4" />
       </button>
     </div>
   )
 }
 
-function QualityCheck({ data, onResume }) {
+/* ─── 2. Add Sources ─── */
+function AddSources({ data, onResume }) {
+  const [sources, setSources] = useState(data.existing_sources || [])
+  const [label, setLabel] = useState('')
+  const [url, setUrl] = useState('')
+
+  const handleAdd = () => {
+    const trimmedUrl = url.trim()
+    const trimmedLabel = label.trim()
+    if (!trimmedUrl && !trimmedLabel) return
+    const entry = trimmedLabel && trimmedUrl
+      ? `${trimmedLabel} :: ${trimmedUrl}`
+      : trimmedUrl || trimmedLabel
+    setSources((prev) => [...prev, entry])
+    setLabel('')
+    setUrl('')
+  }
+
+  const handleDelete = (i) => {
+    setSources((prev) => prev.filter((_, j) => j !== i))
+  }
+
   return (
     <div className="space-y-4">
-      {data.gathered_info_preview && (
-        <div className="bg-slate-800/80 rounded-lg p-3 border border-slate-700 max-h-48 overflow-y-auto">
-          <p className="text-[10px] uppercase text-slate-500 font-semibold mb-1">
-            Bisherige Recherche-Ergebnisse (Vorschau)
-          </p>
+      {data.suggestions && (
+        <div className="bg-slate-800/60 rounded-lg p-3 border border-slate-700">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+            <p className="text-[10px] uppercase text-amber-400 font-semibold">
+              Vorschläge des Assistenten
+            </p>
+          </div>
           <p className="text-xs text-slate-400 whitespace-pre-wrap leading-relaxed">
-            {data.gathered_info_preview}
+            {data.suggestions}
           </p>
         </div>
       )}
 
-      <p className="text-sm text-slate-300 text-center">
-        Iteration {data.iteration}/2 abgeschlossen.
-        Reichen die Informationen für einen guten Report?
+      <div className="space-y-2">
+        {sources.length === 0 && (
+          <p className="text-xs text-slate-600 italic text-center py-2">
+            Noch keine Quellen hinterlegt. Du kannst auch ohne Quellen weiter.
+          </p>
+        )}
+        {sources.map((s, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="group flex items-start gap-2 bg-slate-800/80 rounded-lg p-2.5 border border-slate-700"
+          >
+            <Link2 className="w-3.5 h-3.5 text-sky-400 mt-1 shrink-0" />
+            <span className="flex-1 text-xs text-slate-300 break-all leading-relaxed">{s}</span>
+            <button
+              onClick={() => handleDelete(i)}
+              className="p-1 rounded hover:bg-slate-700 text-slate-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_auto] gap-2">
+        <input
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Label / Titel"
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
+        />
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder="https://... oder eigene Notiz"
+          className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
+        />
+        <button
+          onClick={handleAdd}
+          disabled={!url.trim() && !label.trim()}
+          className="px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+
+      <button
+        onClick={() => onResume(sources)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-semibold transition-all shadow-lg shadow-blue-500/10"
+      >
+        <Sparkles className="w-4 h-4" />
+        {sources.length > 0 ? `${sources.length} Quelle${sources.length === 1 ? '' : 'n'} übernehmen` : 'Ohne Quellen fortfahren'}
+        <ArrowRight className="w-4 h-4" />
+      </button>
+    </div>
+  )
+}
+
+/* ─── 3. Draft Review ─── */
+function DraftReview({ data, onResume }) {
+  const [feedback, setFeedback] = useState('')
+
+  return (
+    <div className="space-y-4">
+      {data.draft_preview && (
+        <div className="bg-slate-800/80 rounded-lg p-3 border border-slate-700 max-h-64 overflow-y-auto">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <MessageSquareText className="w-3.5 h-3.5 text-purple-400" />
+            <p className="text-[10px] uppercase text-purple-400 font-semibold">
+              Aktueller Entwurf
+            </p>
+          </div>
+          <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-[system-ui]">
+            {data.draft_preview}
+          </p>
+        </div>
+      )}
+
+      <p className="text-xs text-slate-400 text-center">
+        Review {data.iteration}/2 — Entwurf freigeben oder Überarbeitung anfordern.
       </p>
+
+      <textarea
+        value={feedback}
+        onChange={(e) => setFeedback(e.target.value)}
+        placeholder="Optional: Was soll in der Überarbeitung besser werden? (z. B. 'Einleitung kürzen, mehr Beispiele im Abschnitt 2')"
+        rows={3}
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-amber-500/50 resize-none"
+      />
 
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => onResume(false)}
-          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-semibold transition-all"
+          onClick={() => onResume({ approved: false, revision_notes: feedback.trim() })}
+          disabled={!feedback.trim()}
+          className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 text-amber-300 font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          title={!feedback.trim() ? 'Bitte Feedback formulieren' : ''}
         >
           <XCircle className="w-4 h-4" />
-          Nein, weiter recherchieren
+          Überarbeiten
         </button>
 
         <button
-          onClick={() => onResume(true)}
+          onClick={() => onResume({ approved: true, revision_notes: '' })}
           className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-300 font-semibold transition-all"
         >
           <CheckCircle2 className="w-4 h-4" />
-          Ja, Report erstellen
+          Freigeben & finalisieren
         </button>
       </div>
     </div>
@@ -176,7 +294,6 @@ export default function InterruptOverlay({ data, onResume }) {
       transition={{ duration: 0.3, ease: 'easeOut' }}
       className="bg-slate-900/95 border-2 border-amber-500/40 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.1)] backdrop-blur-sm"
     >
-      {/* Header */}
       <div className="px-4 py-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-3">
         <div className="p-1.5 bg-amber-500/20 rounded-lg">
           <Hand className="w-4 h-4 text-amber-400" />
@@ -192,14 +309,10 @@ export default function InterruptOverlay({ data, onResume }) {
         </span>
       </div>
 
-      {/* Body */}
       <div className="p-4">
-        {data.type === 'review_topics' && (
-          <TopicReview data={data} onResume={onResume} />
-        )}
-        {data.type === 'quality_check' && (
-          <QualityCheck data={data} onResume={onResume} />
-        )}
+        {data.type === 'review_outline' && <OutlineReview data={data} onResume={onResume} />}
+        {data.type === 'add_sources' && <AddSources data={data} onResume={onResume} />}
+        {data.type === 'review_draft' && <DraftReview data={data} onResume={onResume} />}
       </div>
     </motion.div>
   )

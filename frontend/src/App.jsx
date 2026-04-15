@@ -6,14 +6,15 @@ import OutputPanel from './components/OutputPanel'
 import StateInspector from './components/StateInspector'
 import CodeView from './components/CodeView'
 import InterruptOverlay from './components/InterruptOverlay'
+import InfoModal from './components/InfoModal'
 
 const WORKFLOW_NODES = [
-  { id: 'understand_topic', label: 'Thema verstehen', icon: 'search' },
-  { id: 'evaluate_sources', label: 'Quellen bewerten', icon: 'book' },
-  { id: 'check_quality', label: 'Qualität prüfen', icon: 'check-circle' },
-  { id: 'refine_topic', label: 'Thema verfeinern', icon: 'refresh' },
-  { id: 'summarize', label: 'Zusammenfassen', icon: 'file-text' },
-  { id: 'generate_report', label: 'Report erstellen', icon: 'clipboard' },
+  { id: 'plan_outline', label: 'Outline planen', icon: 'list' },
+  { id: 'collect_sources', label: 'Quellen sammeln', icon: 'link' },
+  { id: 'draft_article', label: 'Entwurf schreiben', icon: 'pen' },
+  { id: 'review_draft', label: 'Entwurf prüfen', icon: 'eye' },
+  { id: 'revise_article', label: 'Überarbeiten', icon: 'refresh' },
+  { id: 'finalize', label: 'Finalisieren', icon: 'sparkles' },
 ]
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
   const [interruptData, setInterruptData] = useState(null)
   const [nodeReads, setNodeReads] = useState([])
   const [nodeWrites, setNodeWrites] = useState([])
+  const [showInfo, setShowInfo] = useState(false)
 
   const eventSourceRef = useRef(null)
 
@@ -78,7 +80,6 @@ export default function App() {
       setChangedKeys([])
       setNodeReads(data.reads || [])
       setNodeWrites(data.writes || [])
-      // Remove from completed if re-entering (cycle)
       setCompletedNodes((prev) => prev.filter((n) => n !== data.node))
     })
 
@@ -144,11 +145,12 @@ export default function App() {
     }
   }, [])
 
-  const startResearch = useCallback(
-    (question) => {
+  const startBlog = useCallback(
+    ({ topic, audience }) => {
       resetState()
       setIsRunning(true)
-      connectToStream(`/research?question=${encodeURIComponent(question)}`)
+      const params = new URLSearchParams({ topic, audience: audience || '' })
+      connectToStream(`/blog?${params.toString()}`)
     },
     [resetState, connectToStream]
   )
@@ -158,23 +160,23 @@ export default function App() {
       setInterruptData(null)
       setIsRunning(true)
 
-      await fetch(`/research/${sessionId}/resume`, {
+      await fetch(`/blog/${sessionId}/resume`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ value }),
       })
 
-      connectToStream(`/research/${sessionId}/stream`)
+      connectToStream(`/blog/${sessionId}/stream`)
     },
     [sessionId, connectToStream]
   )
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950">
-      <Header />
+      <Header onInfoClick={() => setShowInfo(true)} />
 
       <div className="px-4 pt-1 pb-6 max-w-[1600px] mx-auto w-full">
-        <InputSection onSubmit={startResearch} isRunning={isRunning} />
+        <InputSection onSubmit={startBlog} isRunning={isRunning} />
 
         {error && (
           <div className="mb-4 p-4 bg-red-900/40 border border-red-500/50 rounded-xl text-red-300 text-sm">
@@ -183,7 +185,6 @@ export default function App() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_360px] gap-4">
-          {/* Left: Workflow */}
           <WorkflowPanel
             nodes={WORKFLOW_NODES}
             activeNode={activeNode}
@@ -192,7 +193,6 @@ export default function App() {
             interruptNode={interruptData?.node}
           />
 
-          {/* Center: Output + Code */}
           <div className="flex flex-col gap-4 min-w-0">
             <OutputPanel
               blocks={outputBlocks}
@@ -214,7 +214,6 @@ export default function App() {
             />
           </div>
 
-          {/* Right: State Inspector */}
           <StateInspector
             state={currentState}
             changedKeys={changedKeys}
@@ -223,6 +222,8 @@ export default function App() {
           />
         </div>
       </div>
+
+      {showInfo && <InfoModal onClose={() => setShowInfo(false)} />}
     </div>
   )
 }

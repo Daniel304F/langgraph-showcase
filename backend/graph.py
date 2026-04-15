@@ -1,42 +1,44 @@
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
-from state import ResearchState
+from state import BlogState
 from nodes import (
-    understand_topic,
-    evaluate_sources,
-    check_quality,
-    refine_topic,
-    summarize,
-    generate_report,
+    plan_outline,
+    collect_sources,
+    draft_article,
+    review_draft,
+    revise_article,
+    finalize,
 )
 
 
-def quality_router(state: ResearchState) -> str:
-    if state.get("quality_sufficient", False):
-        return "summarize"
-    return "refine_topic"
+def review_router(state: BlogState) -> str:
+    if state.get("approved", False):
+        return "finalize"
+    if state.get("iteration", 0) >= 2:
+        return "finalize"
+    return "revise_article"
 
 
 def build_graph():
-    graph = StateGraph(ResearchState)
+    graph = StateGraph(BlogState)
 
-    graph.add_node("understand_topic", understand_topic)
-    graph.add_node("evaluate_sources", evaluate_sources)
-    graph.add_node("check_quality", check_quality)
-    graph.add_node("refine_topic", refine_topic)
-    graph.add_node("summarize", summarize)
-    graph.add_node("generate_report", generate_report)
+    graph.add_node("plan_outline", plan_outline)
+    graph.add_node("collect_sources", collect_sources)
+    graph.add_node("draft_article", draft_article)
+    graph.add_node("review_draft", review_draft)
+    graph.add_node("revise_article", revise_article)
+    graph.add_node("finalize", finalize)
 
-    graph.set_entry_point("understand_topic")
-    graph.add_edge("understand_topic", "evaluate_sources")
-    graph.add_edge("evaluate_sources", "check_quality")
-    graph.add_conditional_edges("check_quality", quality_router, {
-        "summarize": "summarize",
-        "refine_topic": "refine_topic",
+    graph.set_entry_point("plan_outline")
+    graph.add_edge("plan_outline", "collect_sources")
+    graph.add_edge("collect_sources", "draft_article")
+    graph.add_edge("draft_article", "review_draft")
+    graph.add_conditional_edges("review_draft", review_router, {
+        "finalize": "finalize",
+        "revise_article": "revise_article",
     })
-    graph.add_edge("refine_topic", "understand_topic")
-    graph.add_edge("summarize", "generate_report")
-    graph.add_edge("generate_report", END)
+    graph.add_edge("revise_article", "draft_article")
+    graph.add_edge("finalize", END)
 
     memory = MemorySaver()
     return graph.compile(checkpointer=memory)

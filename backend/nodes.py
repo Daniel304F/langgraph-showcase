@@ -3,162 +3,189 @@ import os
 from langgraph.types import interrupt
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from state import ResearchState
+from state import BlogState
 
 
 def get_llm():
     return ChatOpenAI(
         model="gwdg/llama-3.3-70b-instruct",
-        temperature=0.3,
+        temperature=0.4,
         base_url=os.environ.get("OPENAI_API_BASE"),
     )
 
 
-def understand_topic(state: ResearchState) -> dict:
-    refinement = state.get("refinement_notes", "")
-    context = ""
-    if refinement:
-        context = f"\n\nBisherige Erkenntnisse und Verfeinerungen:\n{refinement}"
+def plan_outline(state: BlogState) -> dict:
+    revision = state.get("revision_notes", "")
+    context = f"\n\nFrühere Hinweise:\n{revision}" if revision else ""
+    audience = state.get("audience", "") or "allgemeines interessiertes Publikum"
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. Zerlege die gegebene Forschungsfrage "
-                   "in 3-5 konkrete Teilaspekte und definiere passende Suchbegriffe."),
-        ("human", "Forschungsfrage: {question}{context}\n\n"
-                  "Erstelle eine Liste von Teilaspekten mit jeweils passenden Suchbegriffen. "
-                  "Formatiere als nummerierte Liste.")
+        ("system", "Du bist ein erfahrener Blog-Redakteur. Erstelle eine klare "
+                   "Outline für einen Blogartikel. Nutze 4-6 Abschnitte mit "
+                   "prägnanten Überschriften."),
+        ("human", "Thema / Fragestellung: {topic}\n"
+                  "Zielgruppe: {audience}{context}\n\n"
+                  "Erstelle eine strukturierte Outline. Gib NUR die Überschriften "
+                  "als nummerierte Liste zurück, ohne weitere Erklärungen.")
     ])
 
     chain = prompt | get_llm()
-    result = chain.invoke({"question": state["question"], "context": context})
+    result = chain.invoke({
+        "topic": state["topic"],
+        "audience": audience,
+        "context": context,
+    })
 
     lines = [line.strip() for line in result.content.strip().split("\n") if line.strip()]
 
-    # Human-in-the-Loop: Nutzer kann Teilaspekte prüfen und bearbeiten
-    approved_topics = interrupt({
-        "type": "review_topics",
-        "sub_topics": lines,
-        "message": "Prüfe die generierten Teilaspekte. Du kannst sie bearbeiten, "
-                   "hinzufügen oder entfernen bevor die Recherche startet.",
+    approved_outline = interrupt({
+        "type": "review_outline",
+        "outline": lines,
+        "message": "Prüfe die Outline deines Blogartikels. Du kannst Abschnitte "
+                   "umschreiben, entfernen oder neue hinzufügen.",
     })
 
     return {
-        "sub_topics": approved_topics,
+        "outline": approved_outline,
     }
 
 
-def evaluate_sources(state: ResearchState) -> dict:
-    sub_topics_text = "\n".join(state.get("sub_topics", []))
-    previous_info = state.get("gathered_info", "")
+def collect_sources(state: BlogState) -> dict:
+    outline_text = "\n".join(state.get("outline", []))
 
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. Analysiere die Teilaspekte und "
-                   "sammle strukturierte Informationen zu jedem Punkt."),
-        ("human", "Forschungsfrage: {question}\n\n"
-                  "Teilaspekte:\n{sub_topics}\n\n"
-                  "Bereits gesammelte Informationen:\n{previous_info}\n\n"
-                  "Recherchiere zu jedem Teilaspekt und fasse die wichtigsten Erkenntnisse zusammen.")
+        ("system", "Du bist ein Recherche-Assistent. Schlage dem Autor 3-4 "
+                   "Arten von Quellen vor, die für den Artikel hilfreich wären "
+                   "(z. B. Studien, offizielle Dokumentation, Experteninterviews). "
+                   "Sei konkret, aber erfinde keine echten URLs."),
+        ("human", "Thema: {topic}\n\nOutline:\n{outline}\n\n"
+                  "Welche Arten von Quellen wären besonders wertvoll? "
+                  "Formatiere als kurze nummerierte Liste mit je einem Satz.")
     ])
 
     chain = prompt | get_llm()
     result = chain.invoke({
-        "question": state["question"],
-        "sub_topics": sub_topics_text,
-        "previous_info": previous_info or "Noch keine.",
+        "topic": state["topic"],
+        "outline": outline_text,
     })
 
-    combined = previous_info + "\n\n" + result.content if previous_info else result.content
+    suggestions = result.content.strip()
+    existing_sources = state.get("sources", [])
+
+    user_sources = interrupt({
+        "type": "add_sources",
+        "suggestions": suggestions,
+        "existing_sources": existing_sources,
+        "message": "Füge deine eigenen Quellen hinzu. Verlinke Artikel, Studien, "
+                   "interne Dokumente oder persönliche Notizen. Diese fließen "
+                   "direkt in den Artikel ein.",
+    })
 
     return {
-        "gathered_info": combined.strip(),
+        "sources": user_sources or [],
     }
 
 
-def check_quality(state: ResearchState) -> dict:
+def draft_article(state: BlogState) -> dict:
+    outline_text = "\n".join(state.get("outline", []))
+    sources_text = "\n".join(state.get("sources", [])) or "Keine Quellen angegeben."
+    revision = state.get("revision_notes", "")
+    previous_draft = state.get("draft", "")
+
+    revision_block = ""
+    if revision and previous_draft:
+        revision_block = (
+            f"\n\nBisheriger Entwurf:\n{previous_draft}\n\n"
+            f"Überarbeitungshinweise vom Autor:\n{revision}\n\n"
+            "Überarbeite den Entwurf entsprechend."
+        )
+
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", "Du bist ein professioneller Blogautor. Schreibe einen gut "
+                   "lesbaren Blogartikel in klarem Deutsch. Nutze die Outline "
+                   "als Struktur. Erwähne die angegebenen Quellen im Text und "
+                   "verweise am Ende im Abschnitt 'Quellen' auf sie."),
+        ("human", "Thema: {topic}\n"
+                  "Zielgruppe: {audience}\n\n"
+                  "Outline:\n{outline}\n\n"
+                  "Verfügbare Quellen:\n{sources}{revision_block}\n\n"
+                  "Schreibe den Blogartikel als Markdown.")
+    ])
+
+    chain = prompt | get_llm()
+    result = chain.invoke({
+        "topic": state["topic"],
+        "audience": state.get("audience", "") or "allgemeines interessiertes Publikum",
+        "outline": outline_text,
+        "sources": sources_text,
+        "revision_block": revision_block,
+    })
+
+    return {
+        "draft": result.content.strip(),
+    }
+
+
+def review_draft(state: BlogState) -> dict:
     iteration = state.get("iteration", 0) + 1
 
-    # Nach 2 Iterationen immer weiter
-    if iteration >= 2:
+    if iteration > 2:
         return {
-            "quality_sufficient": True,
+            "approved": True,
+            "iteration": iteration,
+            "revision_notes": "",
+        }
+
+    decision = interrupt({
+        "type": "review_draft",
+        "iteration": iteration,
+        "draft_preview": state.get("draft", ""),
+        "message": "Prüfe den Entwurf. Gib ihn frei oder formuliere "
+                   "Überarbeitungshinweise für die nächste Version.",
+    })
+
+    if isinstance(decision, dict):
+        return {
+            "approved": bool(decision.get("approved", False)),
+            "revision_notes": decision.get("revision_notes", "") or "",
             "iteration": iteration,
         }
 
-    # Human-in-the-Loop: Nutzer entscheidet ob Qualität reicht
-    decision = interrupt({
-        "type": "quality_check",
+    return {
+        "approved": bool(decision),
         "iteration": iteration,
-        "message": "Sind die gesammelten Informationen ausreichend für einen guten Report?",
-        "gathered_info_preview": state.get("gathered_info", "")[:1000],
-    })
-
-    return {
-        "quality_sufficient": decision,
-        "iteration": iteration,
+        "revision_notes": "",
     }
 
 
-def refine_topic(state: ResearchState) -> dict:
+def revise_article(state: BlogState) -> dict:
+    # Dieser Node existiert, um die Zyklus-Semantik im Graph sichtbar zu machen.
+    # Die eigentliche Überarbeitung passiert in draft_article, sobald
+    # revision_notes gesetzt sind – so bleibt der Prompt-Code an einer Stelle.
+    return {}
+
+
+def finalize(state: BlogState) -> dict:
     prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. Identifiziere Lücken in der bisherigen "
-                   "Recherche und schlage eine verfeinerte Suchstrategie vor."),
-        ("human", "Forschungsfrage: {question}\n\n"
-                  "Bisherige Teilaspekte:\n{sub_topics}\n\n"
-                  "Gesammelte Informationen:\n{gathered_info}\n\n"
-                  "Welche Aspekte fehlen noch? Welche Suchbegriffe sollten ergänzt werden? "
-                  "Erstelle eine verfeinerte Strategie.")
+        ("system", "Du bist ein Blog-Editor. Erstelle die finale, "
+                   "veröffentlichungsreife Fassung des Artikels. Ergänze "
+                   "einen Titel, eine kurze Meta-Description (max. 160 Zeichen) "
+                   "und drei passende Tags. Formatiere als Markdown."),
+        ("human", "Thema: {topic}\n\n"
+                  "Freigegebener Entwurf:\n{draft}\n\n"
+                  "Liefere das finale Ergebnis in folgendem Format:\n\n"
+                  "# <Titel>\n\n"
+                  "**Meta-Description:** <text>\n\n"
+                  "**Tags:** tag1, tag2, tag3\n\n"
+                  "---\n\n<Artikel als Markdown>")
     ])
 
     chain = prompt | get_llm()
     result = chain.invoke({
-        "question": state["question"],
-        "sub_topics": "\n".join(state.get("sub_topics", [])),
-        "gathered_info": state.get("gathered_info", ""),
+        "topic": state["topic"],
+        "draft": state.get("draft", ""),
     })
 
     return {
-        "refinement_notes": result.content.strip(),
-    }
-
-
-def summarize(state: ResearchState) -> dict:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein Forschungsassistent. Erstelle eine strukturierte Zusammenfassung "
-                   "aller gesammelten Informationen."),
-        ("human", "Forschungsfrage: {question}\n\n"
-                  "Alle gesammelten Informationen:\n{gathered_info}\n\n"
-                  "Erstelle eine klar strukturierte Zusammenfassung mit den wichtigsten Erkenntnissen.")
-    ])
-
-    chain = prompt | get_llm()
-    result = chain.invoke({
-        "question": state["question"],
-        "gathered_info": state.get("gathered_info", ""),
-    })
-
-    return {
-        "summary": result.content.strip(),
-    }
-
-
-def generate_report(state: ResearchState) -> dict:
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", "Du bist ein professioneller Report-Autor. Erstelle einen gut lesbaren, "
-                   "finalen Forschungsbericht basierend auf der Zusammenfassung."),
-        ("human", "Forschungsfrage: {question}\n\n"
-                  "Zusammenfassung:\n{summary}\n\n"
-                  "Erstelle einen finalen Report mit:\n"
-                  "- Einleitung\n"
-                  "- Haupterkenntnisse (strukturiert nach Themen)\n"
-                  "- Fazit\n\n"
-                  "Der Report soll informativ und gut lesbar sein.")
-    ])
-
-    chain = prompt | get_llm()
-    result = chain.invoke({
-        "question": state["question"],
-        "summary": state.get("summary", ""),
-    })
-
-    return {
-        "report": result.content.strip(),
+        "final_article": result.content.strip(),
     }

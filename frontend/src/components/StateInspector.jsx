@@ -3,30 +3,32 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Database, Copy, Check, X, Maximize2, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react'
 
 const STATE_FIELD_META = {
-  question: { label: 'question', type: 'string', desc: 'Eingabe des Nutzers' },
-  sub_topics: { label: 'sub_topics', type: 'list[str]', desc: 'Teilaspekte aus understand_topic' },
-  gathered_info: { label: 'gathered_info', type: 'str', desc: 'Recherche-Ergebnisse' },
-  quality_sufficient: { label: 'quality_sufficient', type: 'bool', desc: 'Qualitätsbewertung' },
-  iteration: { label: 'iteration', type: 'int', desc: 'Zyklus-Zähler (max 2)' },
-  refinement_notes: { label: 'refinement_notes', type: 'str', desc: 'Verfeinerungshinweise' },
-  summary: { label: 'summary', type: 'str', desc: 'Zusammenfassung' },
-  report: { label: 'report', type: 'str', desc: 'Finaler Output' },
+  topic: { label: 'topic', type: 'str', desc: 'Thema oder Fragestellung' },
+  audience: { label: 'audience', type: 'str', desc: 'Zielgruppe des Artikels' },
+  outline: { label: 'outline', type: 'list[str]', desc: 'Abschnitte der Gliederung' },
+  sources: { label: 'sources', type: 'list[str]', desc: 'Eigene Quellen & Links' },
+  draft: { label: 'draft', type: 'str', desc: 'Aktueller Entwurf' },
+  revision_notes: { label: 'revision_notes', type: 'str', desc: 'Feedback für Überarbeitung' },
+  iteration: { label: 'iteration', type: 'int', desc: 'Review-Zähler (max 2)' },
+  approved: { label: 'approved', type: 'bool', desc: 'Vom Nutzer freigegeben' },
+  final_article: { label: 'final_article', type: 'str', desc: 'Finale Fassung' },
 }
 
 const ALL_KEYS = [
-  'question', 'sub_topics', 'gathered_info', 'quality_sufficient',
-  'iteration', 'refinement_notes', 'summary', 'report',
+  'topic', 'audience', 'outline', 'sources', 'draft',
+  'revision_notes', 'iteration', 'approved', 'final_article',
 ]
 
 const DEFAULTS = {
-  question: '',
-  sub_topics: [],
-  gathered_info: '',
-  quality_sufficient: false,
+  topic: '',
+  audience: '',
+  outline: [],
+  sources: [],
+  draft: '',
+  revision_notes: '',
   iteration: 0,
-  refinement_notes: '',
-  summary: '',
-  report: '',
+  approved: false,
+  final_article: '',
 }
 
 function formatPreviewValue(value) {
@@ -246,7 +248,7 @@ export default function StateInspector({ state, changedKeys, nodeReads, nodeWrit
         <div className="px-4 py-3 border-b border-slate-800 flex items-center gap-2">
           <Database className="w-4 h-4 text-slate-500" />
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            ResearchState
+            BlogState
           </h2>
           <span className="text-[10px] font-mono text-slate-600 ml-1">TypedDict</span>
           {state && (

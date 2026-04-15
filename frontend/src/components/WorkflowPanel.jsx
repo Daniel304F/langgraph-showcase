@@ -1,27 +1,17 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Search, BookOpen, CheckCircle2, RefreshCw,
-  FileText, ClipboardList, ArrowDown, RotateCcw,
-  ChevronRight, Hand,
+  ListChecks, Link2, PenLine, Eye, RefreshCw, Sparkles,
+  ArrowDown, RotateCcw, ChevronRight, Hand, CheckCircle2,
 } from 'lucide-react'
 
 const ICON_MAP = {
-  search: Search,
-  book: BookOpen,
-  'check-circle': CheckCircle2,
+  list: ListChecks,
+  link: Link2,
+  pen: PenLine,
+  eye: Eye,
   refresh: RefreshCw,
-  'file-text': FileText,
-  clipboard: ClipboardList,
+  sparkles: Sparkles,
 }
-
-const EDGES = [
-  { from: 'understand_topic', to: 'evaluate_sources', type: 'normal' },
-  { from: 'evaluate_sources', to: 'check_quality', type: 'normal' },
-  { from: 'check_quality', to: 'refine_topic', type: 'conditional', label: 'NEIN' },
-  { from: 'check_quality', to: 'summarize', type: 'conditional', label: 'JA' },
-  { from: 'refine_topic', to: 'understand_topic', type: 'cycle' },
-  { from: 'summarize', to: 'generate_report', type: 'normal' },
-]
 
 export default function WorkflowPanel({ nodes, activeNode, completedNodes, iteration, interruptNode }) {
   const getNodeStatus = (nodeId) => {
@@ -44,7 +34,7 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
               animate={{ scale: 1 }}
               className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30"
             >
-              Iteration {iteration}/2
+              Review {iteration}/2
             </motion.span>
           )}
         </AnimatePresence>
@@ -53,13 +43,12 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
       <div className="flex flex-col items-center gap-1">
         {nodes.map((node, index) => {
           const status = getNodeStatus(node.id)
-          const Icon = ICON_MAP[node.icon] || FileText
-          const isRefine = node.id === 'refine_topic'
+          const Icon = ICON_MAP[node.icon] || PenLine
+          const isRevise = node.id === 'revise_article'
+          const isReview = node.id === 'review_draft'
 
-          // Find relevant edges
-          const showArrowAfter = index < nodes.length - 1 && node.id !== 'refine_topic'
-          const showCycleArrow = isRefine
-          const isCheckQuality = node.id === 'check_quality'
+          const showArrowAfter = index < nodes.length - 1 && !isRevise
+          const showCycleArrow = isRevise
 
           return (
             <div key={node.id} className="w-full flex flex-col items-center">
@@ -77,7 +66,6 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                   }
                 `}
               >
-                {/* Pulse ring for active */}
                 {status === 'active' && (
                   <motion.div
                     className="absolute inset-0 rounded-xl border-2 border-blue-400"
@@ -87,7 +75,6 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                   />
                 )}
 
-                {/* Icon */}
                 <div className={`
                   w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors
                   ${status === 'interrupt' ? 'bg-amber-500/20 text-amber-400'
@@ -112,12 +99,10 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                   )}
                 </div>
 
-                {/* Label */}
                 <span className={`text-sm font-medium ${status === 'interrupt' ? 'text-amber-300' : status === 'active' ? 'text-blue-300' : status === 'completed' ? 'text-emerald-300' : 'text-slate-400'}`}>
                   {node.label}
                 </span>
 
-                {/* Active indicator */}
                 {status === 'active' && (
                   <motion.div
                     className="ml-auto"
@@ -129,8 +114,7 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
                 )}
               </motion.div>
 
-              {/* Arrows */}
-              {isCheckQuality && (
+              {isReview && (
                 <div className="flex items-center gap-1 py-0.5">
                   <span className="text-[9px] font-bold text-amber-400/70">NEIN ↓</span>
                   <span className="text-slate-700 text-[9px]">|</span>
@@ -141,11 +125,11 @@ export default function WorkflowPanel({ nodes, activeNode, completedNodes, itera
               {showCycleArrow && (
                 <div className="flex items-center gap-1 py-0.5 text-amber-400/60">
                   <RotateCcw className="w-3 h-3" />
-                  <span className="text-[9px] font-semibold">zurück zu &quot;Thema verstehen&quot;</span>
+                  <span className="text-[9px] font-semibold">zurück zu &quot;Entwurf schreiben&quot;</span>
                 </div>
               )}
 
-              {showArrowAfter && !isCheckQuality && (
+              {showArrowAfter && !isReview && (
                 <ArrowDown className="w-3.5 h-3.5 text-slate-600 my-0.5" />
               )}
             </div>

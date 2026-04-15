@@ -1,12 +1,13 @@
 from typing import TypedDict
 
 
-class ResearchState(TypedDict):
-    question: str
-    sub_topics: list[str]
-    gathered_info: str
-    quality_sufficient: bool
+class BlogState(TypedDict):
+    topic: str
+    audience: str
+    outline: list[str]
+    sources: list[str]
+    draft: str
+    revision_notes: str
     iteration: int
-    refinement_notes: str
-    summary: str
-    report: str
+    approved: bool
+    final_article: str

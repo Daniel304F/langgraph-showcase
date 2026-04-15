@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/research': 'http://localhost:8000',
+      '/blog': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
     },
   },

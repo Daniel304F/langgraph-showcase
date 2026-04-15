@@ -3,21 +3,21 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, CheckCircle2, MessageSquare } from 'lucide-react'
 
 const NODE_LABELS = {
-  understand_topic: 'Thema verstehen',
-  evaluate_sources: 'Quellen bewerten',
-  check_quality: 'Qualität prüfen',
-  refine_topic: 'Thema verfeinern',
-  summarize: 'Zusammenfassen',
-  generate_report: 'Report erstellen',
+  plan_outline: 'Outline planen',
+  collect_sources: 'Quellen sammeln',
+  draft_article: 'Entwurf schreiben',
+  review_draft: 'Entwurf prüfen',
+  revise_article: 'Überarbeiten',
+  finalize: 'Finalisieren',
 }
 
 const NODE_COLORS = {
-  understand_topic: 'blue',
-  evaluate_sources: 'indigo',
-  check_quality: 'amber',
-  refine_topic: 'orange',
-  summarize: 'purple',
-  generate_report: 'emerald',
+  plan_outline: 'blue',
+  collect_sources: 'indigo',
+  draft_article: 'purple',
+  review_draft: 'amber',
+  revise_article: 'orange',
+  finalize: 'emerald',
 }
 
 function getColorClasses(color) {
